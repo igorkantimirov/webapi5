@@ -5,7 +5,7 @@ namespace WebApplication5.Controllers;
 
 public interface IUserService
 {
-    Task<AuthenticateAsyncResDto> AuthenticateAsync(AuthenticateAsyncReqDto dto);
-    Task<RegisterAsyncResDto> RegisterAsync(RegisterAsyncReqDto dto);
-    Task<User> GetUserByIdAsync(Guid userId);
+    Task<User> CreateAsync(CreateUserReqDto userReq);
+    Task<string> LoginAsync(LoginUserReqDto userReq);
+    Task<User> FindByIdAsync(string userId);
 }

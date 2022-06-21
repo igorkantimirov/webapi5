@@ -1,11 +1,12 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using MongoDB.Driver;
 using WebApplication5.Controllers;
-using WebApplication5.Data;
 using WebApplication5.Helpers;
+using WebApplication5.Models;
+using WebApplication5.Repositories;
 using WebApplication5.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -50,6 +51,12 @@ builder.Services.AddSwaggerGen(configuration =>
         });
 });
 
+builder.Services.AddSingleton<IMongoClient, MongoClient>(s =>
+{
+    var uri = s.GetRequiredService<IConfiguration>()["MongoUri"];
+    return new MongoClient(uri);
+});
+
 var key = Encoding.ASCII.GetBytes(Enumerable.Range(1, 129).ToList().ToString()!); // todo: move to _appSettings // Encoding.ASCII.GetBytes(appSettings.Secret);
 builder.Services
     .AddAuthentication(configuration =>
@@ -63,7 +70,9 @@ builder.Services
         {
             OnTokenValidated = context =>
             {
-                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var mongoClient = context.HttpContext.RequestServices.GetRequiredService<IMongoClient>();
+                var mongoDatabase = mongoClient.GetDatabase("MyCompany");
+                var usersCollection = mongoDatabase.GetCollection<User>("Users");
                 var userId = context.Principal?.Identity?.Name;
                 if (userId == null)
                 {
@@ -71,8 +80,7 @@ builder.Services
                     return Task.CompletedTask;
                 }
 
-                var user = db.Users.AsNoTracking()
-                    .FirstOrDefault(x => x.Id == Guid.Parse(userId));
+                var user = usersCollection.Find(x => x._id == userId).FirstOrDefault();
 
                 if (user == null)
                 {
@@ -94,10 +102,10 @@ builder.Services
         };
     });
 
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IPasswordHelper, PasswordHelper>();
-builder.Services.AddDbContext<AppDbContext>();
-builder.Services.AddScoped<IAuthHelper, AuthHelper>();
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddSingleton<IUserService, UserService>();
+builder.Services.AddSingleton<IPasswordHelper, PasswordHelper>();
+builder.Services.AddSingleton<IAuthHelper, AuthHelper>();
 
 var app = builder.Build();
 

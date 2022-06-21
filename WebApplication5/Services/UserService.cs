@@ -2,77 +2,68 @@ using System.Security.Authentication;
 using System.Security.Claims;
 using System.Text;
 using WebApplication5.Controllers;
-using WebApplication5.Data;
 using WebApplication5.Helpers;
 using System.IdentityModel.Tokens.Jwt;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using WebApplication5.Models;
+using WebApplication5.Repositories;
 
 namespace WebApplication5.Services;
 
 public class UserService : IUserService
 {
-    private readonly AppDbContext _dbContext;
     private readonly IPasswordHelper _passwordHelper;
+    private readonly IUserRepository _userRepository;
     
-    public UserService(AppDbContext dbContext, IPasswordHelper passwordHelper)
+    public UserService(IPasswordHelper passwordHelper, IUserRepository userRepository)
     {
-        _dbContext = dbContext;
         _passwordHelper = passwordHelper;
+        _userRepository = userRepository;
     }
 
-    public async Task<AuthenticateAsyncResDto> AuthenticateAsync(AuthenticateAsyncReqDto dto)
+    public async Task<User> CreateAsync(CreateUserReqDto userReq)
     {
-        var user = await _dbContext.Users.SingleOrDefaultAsync(x => x.Username == dto.Username);
-
-        if (user == null)
-            throw new AuthenticationException("User not found");
-
-        if (_passwordHelper.GetHashedPassword(dto.Password) != user.PasswordHashed)
-            throw new AuthenticationException("Password is not correct");
+        var existingUser = await _userRepository.FindSingleAsync(userReq.Email, userReq.Username);
         
-        return new AuthenticateAsyncResDto()
+        if (existingUser != null)
         {
-            Email = user.Email,
-            Id = user.Id,
-            Username = user.Username,
-            Token = CreateToken(user.Id.ToString())
-        };
-    }
-
-    public async Task<RegisterAsyncResDto> RegisterAsync(RegisterAsyncReqDto dto)
-    {
-        var user = await _dbContext.Users.SingleOrDefaultAsync(x => x.Username == dto.Username);
-
-        if (user != null)
-            throw new InvalidOperationException("User is already registered");
-
+            throw new AuthenticationException("User already exists");
+        }
+        
         var newUser = new User
         {
-            Id = Guid.NewGuid(),
-            Username = dto.Username,
-            Email = dto.Email,
+            Email = userReq.Email,
+            Username = userReq.Username,
             CreatedAt = DateTime.Now,
             UpdatedAt = DateTime.Now,
-            LastLoginAt = DateTime.Now,
-            PasswordHashed = _passwordHelper.GetHashedPassword(dto.Password)
+            PasswordHashed = _passwordHelper.GetHashedPassword(userReq.Password)
         };
-        
-        await _dbContext.Users.AddAsync(newUser);
-        await _dbContext.SaveChangesAsync();
 
-        return new RegisterAsyncResDto();
+        await _userRepository.InsertOneAsync(newUser);
+        
+        return newUser;
     }
 
-    public async Task<User> GetUserByIdAsync(Guid userId)
+    public async Task<string> LoginAsync(LoginUserReqDto userReq)
     {
-        var user = await _dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId);
+        var existingUser = await _userRepository.FindSingleByEmailAsync(userReq.Email);
+        
+        if (existingUser == null)
+        {
+            throw new AuthenticationException("User doesn't exist");
+        }
 
-        if (user == null)
-            throw new AuthenticationException("User not found!");
+        if (_passwordHelper.Verify(userReq.Password, existingUser.PasswordHashed))
+        {
+            return CreateToken(existingUser._id);
+        }
 
-        return user;
+        throw new AuthenticationException("Password is not correct");
+    }
+
+    public async Task<User> FindByIdAsync(string userId)
+    {
+        return await _userRepository.FindSingleByIdAsync(userId);
     }
 
     private string CreateToken(string userId)

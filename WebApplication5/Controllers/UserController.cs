@@ -24,13 +24,15 @@ public class UserController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpPost("authenticate")]
-    [ActionName(nameof(AuthenticateAsync))]
-    public async Task<ActionResult> AuthenticateAsync([FromBody] AuthenticateAsyncReqDto dto)
+    [HttpPost("create")]
+    [ActionName(nameof(Create))]
+    public async Task<ActionResult> Create([FromBody] CreateUserReqDto userReqDto)
     {
         try
         {
-            return Ok(await _userService.AuthenticateAsync(dto));
+            var createdUser = await _userService.CreateAsync(userReqDto);
+            createdUser.PasswordHashed = null;
+            return Ok(createdUser);
         }
         catch (AuthenticationException exception)
         {
@@ -39,18 +41,25 @@ public class UserController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpPost("register")]
-    [ActionName(nameof(RegisterAsync))]
-    public async Task<ActionResult> RegisterAsync([FromBody] RegisterAsyncReqDto dto)
+    [HttpPost("login")]
+    [ActionName(nameof(Login))]
+    public async Task<ActionResult> Login([FromBody] LoginUserReqDto user)
     {
-        return Ok(await _userService.RegisterAsync(dto));
+        try
+        {
+            return Ok(await _userService.LoginAsync(user));
+        }
+        catch (AuthenticationException exception)
+        {
+            return BadRequest(new Dictionary<string, string> {{"Message", exception.Message}});
+        }
     }
-    
-    [HttpGet("")]
-    [ActionName(nameof(GetAuthenticatedUserAsync))]
-    public async Task<User> GetAuthenticatedUserAsync()
+
+    [HttpGet("current")]
+    [ActionName(nameof(CurrentUser))]
+    public async Task<User> CurrentUser()
     {
         var userId = _authHelper.GetUserId(this);
-        return await _userService.GetUserByIdAsync(userId);
+        return await _userService.FindByIdAsync(userId);
     }
 }
