@@ -6,6 +6,6 @@ namespace WebApplication5.Controllers;
 public interface IUserService
 {
     Task<User> CreateAsync(CreateUserReqDto userReq);
-    Task<string> LoginAsync(LoginUserReqDto userReq);
+    Task<Dictionary<string, string>> LoginAsync(LoginUserReqDto userReq);
     Task<User> FindByIdAsync(string userId);
 }

@@ -44,7 +44,7 @@ public class UserService : IUserService
         return newUser;
     }
 
-    public async Task<string> LoginAsync(LoginUserReqDto userReq)
+    public async Task<Dictionary<string, string>> LoginAsync(LoginUserReqDto userReq)
     {
         var existingUser = await _userRepository.FindSingleByEmailAsync(userReq.Email);
         
@@ -55,7 +55,11 @@ public class UserService : IUserService
 
         if (_passwordHelper.Verify(userReq.Password, existingUser.PasswordHashed))
         {
-            return CreateToken(existingUser._id);
+            var result = new Dictionary<string, string>()
+            {
+                {"token", CreateToken(existingUser._id)}
+            };
+            return result;
         }
 
         throw new AuthenticationException("Password is not correct");

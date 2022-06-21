@@ -103,6 +103,7 @@ builder.Services
     });
 
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddSingleton<IPostRepository, PostRepository>();
 builder.Services.AddSingleton<IUserService, UserService>();
 builder.Services.AddSingleton<IPasswordHelper, PasswordHelper>();
 builder.Services.AddSingleton<IAuthHelper, AuthHelper>();
