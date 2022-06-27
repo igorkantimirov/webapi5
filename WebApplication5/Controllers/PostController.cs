@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApplication5.Helpers;
-using WebApplication5.Models;
 using WebApplication5.Repositories;
+using WebApplication5.Services;
 using WebApplication5.Services.DataTransferObjects;
 
 namespace WebApplication5.Controllers;
@@ -12,15 +12,14 @@ namespace WebApplication5.Controllers;
 [Route("[controller]")]
 public class PostController : ControllerBase
 {
-    private readonly IPostRepository _postRepository;
+    private readonly IPostService _postService;
     private readonly IAuthHelper _authHelper;
 
-    public PostController(IPostRepository postRepository, IAuthHelper authHelper)
+    public PostController(IPostService postService, IAuthHelper authHelper)
     {
-        _postRepository = postRepository;
+        _postService = postService;
         _authHelper = authHelper;
     }
-
 
     [AllowAnonymous]
     [HttpPost("create")]
@@ -28,7 +27,7 @@ public class PostController : ControllerBase
     public async Task<ActionResult> Create([FromBody] PostReqDto post)
     {
         var userId = _authHelper.GetUserId(this);
-        await _postRepository.CreatePostAsync(userId, post.Title, post.Summary);
+        await _postService.CreateAsync(userId, post);
         return Ok("");
     }
     
@@ -39,7 +38,7 @@ public class PostController : ControllerBase
     public async Task<ActionResult> GetAll()
     {
         var userId = _authHelper.GetUserId(this);
-        var posts = await _postRepository.GetAllByUserId(userId);
+        var posts = await _postService.GetAllByUserId(userId);
         return Ok(posts);
     }
 }
